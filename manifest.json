@@ -1,5 +1,5 @@
 {
-"name": "TiVo Tracker",
+  "name": "TiVo Tracker",
   "short_name": "TiVoTracker",
   "start_url": "/TVTracker/",
   "scope": "/TVTracker/",
@@ -8,7 +8,6 @@
   "background_color": "#1a1916",
   "theme_color": "#1a1916",
   "lang": "en-AU",
-  "scope": "/",
   "icons": [
     {
       "src": "icons/icon-192.png",

@@ -5,18 +5,18 @@
 
 const CACHE_NAME = 'tivo-tracker-v1';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/storage.js',
-  '/js/api.js',
-  '/js/stremio.js',
-  '/js/gcal.js',
-  '/js/ui.js',
-  '/js/app.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/TVTracker/',
+  '/TVTracker/index.html',
+  '/TVTracker/css/style.css',
+  '/TVTracker/js/storage.js',
+  '/TVTracker/js/api.js',
+  '/TVTracker/js/stremio.js',
+  '/TVTracker/js/gcal.js',
+  '/TVTracker/js/ui.js',
+  '/TVTracker/js/app.js',
+  '/TVTracker/manifest.json',
+  '/TVTracker/icons/icon-192.png',
+  '/TVTracker/icons/icon-512.png',
   'https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap',
 ];
 
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => {
         // Offline fallback
         if (event.request.destination === 'document') {
-          return caches.match('/index.html');
+          return caches.match('/TVTracker/index.html');
         }
       });
     })
