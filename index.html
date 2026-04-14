@@ -312,9 +312,12 @@
 <script src="js/app.js"></script>
 <script>
   // Register Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(console.error);
-  }
+if ('serviceWorker' in navigator) {
+  // Use './sw.js' to ensure it stays within your repository folder
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('SW Registered!', reg))
+    .catch(err => console.error('SW Registration Failed:', err));
+}
 </script>
 </body>
 </html>
