@@ -1043,6 +1043,200 @@ body {
   .seg-btn { flex: none; }
 }
 
+/* ─── Log Badge ─── */
+.icon-btn { position: relative; }
+
+.log-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--danger);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: bold;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ─── Log Modal ─── */
+.log-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.log-filter-pills {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.log-filter-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.log-filter-btn:last-child { border-right: none; }
+.log-filter-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.log-filter-btn.active { background: var(--accent); color: var(--bg-base); }
+
+.log-stats-bar {
+  display: flex;
+  gap: 16px;
+  padding: 8px 18px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.log-stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.log-stat-error { color: var(--danger); }
+.log-stat-warn { color: var(--accent); }
+.log-stat-last { margin-left: auto; }
+
+.log-modal-body {
+  padding: 0 !important;
+}
+
+.log-date-divider {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  padding: 8px 16px 4px;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+
+.log-entry:last-child { border-bottom: none; }
+.log-entry:hover { background: var(--bg-card); }
+
+.log-error   { border-left-color: var(--danger); }
+.log-warning { border-left-color: var(--accent); }
+.log-success { border-left-color: var(--success); }
+.log-info    { border-left-color: var(--border-strong); }
+
+.log-entry-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.log-level-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  width: 14px;
+  text-align: center;
+}
+
+.log-error   .log-level-icon { color: var(--danger); }
+.log-warning .log-level-icon { color: var(--accent); }
+.log-success .log-level-icon { color: var(--success); }
+.log-info    .log-level-icon { color: var(--text-muted); }
+
+.log-entry-content { flex: 1; min-width: 0; }
+
+.log-entry-message {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.log-entry-detail {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.8;
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.log-entry:hover .log-entry-detail { max-height: none; }
+
+.log-entry-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.log-source-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.log-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
 /* ─── Install Banner ─── */
 #install-banner {
   background: var(--bg-card);

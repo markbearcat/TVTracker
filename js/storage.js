@@ -13,6 +13,8 @@ const Storage = (() => {
     CAL_EVENTS: 'tivo_cal_events',
   };
 
+  const MAX_LOG_ENTRIES = 200;
+
   const DEFAULT_SETTINGS = {
     theme: 'auto',
     syncInterval: 3600000,
@@ -145,6 +147,46 @@ const Storage = (() => {
     return getSettings().lastSync;
   }
 
+  /**
+   * Log levels: 'info' | 'success' | 'warning' | 'error'
+   * Sources: 'sync' | 'stremio' | 'gcal' | 'api' | 'app'
+   */
+  function addLogEntry(level, source, message, detail = null) {
+    let entries = getLogEntries();
+    const entry = {
+      id: Date.now() + Math.random().toString(36).slice(2, 6),
+      ts: Date.now(),
+      level,
+      source,
+      message,
+      detail: detail ? String(detail) : null,
+    };
+    entries.unshift(entry); // newest first
+    if (entries.length > MAX_LOG_ENTRIES) entries = entries.slice(0, MAX_LOG_ENTRIES);
+    localStorage.setItem(KEYS.SYNC_LOG, JSON.stringify(entries));
+    return entry;
+  }
+
+  function getLogEntries() {
+    try {
+      return JSON.parse(localStorage.getItem(KEYS.SYNC_LOG) || '[]');
+    } catch { return []; }
+  }
+
+  function clearLog() {
+    localStorage.removeItem(KEYS.SYNC_LOG);
+  }
+
+  function getLogStats() {
+    const entries = getLogEntries();
+    return {
+      total: entries.length,
+      errors: entries.filter(e => e.level === 'error').length,
+      warnings: entries.filter(e => e.level === 'warning').length,
+      lastError: entries.find(e => e.level === 'error') || null,
+    };
+  }
+
   // ─── Backup / Restore ───
   function exportBackup() {
     return {
@@ -179,6 +221,7 @@ const Storage = (() => {
     getGCalAuth, saveGCalAuth, clearGCalAuth,
     getCalEvents, saveCalEvents, setCalEvent, getCalEvent, removeCalEvent,
     updateLastSync, getLastSync,
+    addLogEntry, getLogEntries, clearLog, getLogStats,
     exportBackup, importBackup, clearAllData,
     KEYS,
   };

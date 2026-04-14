@@ -16,12 +16,14 @@ const App = (() => {
     UI.renderShows(_currentFilter);
     UI.renderUpcoming();
     UI.updateSettingsUI();
+    UI.updateLogBadge();
 
     bindSearch();
     bindFilterTabs();
     bindSettingsModal();
     bindSyncButton();
     bindModalClose();
+    bindLogViewer();
 
     // Check for existing GCal auth
     const gcalAuth = GCal.getStoredAuthState();
@@ -73,6 +75,7 @@ const App = (() => {
       return;
     }
 
+    Storage.addLogEntry('success', 'app', `Added show: "${show.name}"`);
     UI.toast(`Added ${show.name}`, 'success');
     UI.hideSearchResults();
     document.getElementById('search-input').value = '';
@@ -116,14 +119,21 @@ const App = (() => {
       // Auto-add to calendar if authorized
       if (GCal.isAuthorized() && upcoming.length > 0) {
         const show = Storage.getShow(showId);
+        let calCreated = 0;
         for (const ep of upcoming) {
-          await GCal.createOrUpdateEvent(show, ep);
+          const r = await GCal.createOrUpdateEvent(show, ep);
+          if (r.success) calCreated++;
+          else Storage.addLogEntry('error', 'gcal', `Failed to create event for ${show.name} ${ep.code}`, r.error);
         }
         UI.renderUpcoming();
-        UI.toast(`Added ${upcoming.length} episode(s) to Google Calendar`, 'success');
+        if (calCreated > 0) {
+          Storage.addLogEntry('success', 'gcal', `Created ${calCreated} calendar event(s) for "${show.name}"`);
+          UI.toast(`Added ${calCreated} episode(s) to Google Calendar`, 'success');
+        }
       }
     } catch (e) {
       console.error('[App] fetchAndUpdateShow:', e);
+      Storage.addLogEntry('error', 'api', `Could not refresh show ID ${showId}`, e.message);
     }
   }
 
@@ -184,6 +194,7 @@ const App = (() => {
     const syncBtn = document.getElementById('sync-btn');
     syncBtn.classList.add('syncing');
     UI.showSyncOverlay('Starting sync...');
+    Storage.addLogEntry('info', 'sync', 'Manual sync started');
 
     try {
       const shows = Storage.getShows();
@@ -191,13 +202,22 @@ const App = (() => {
       // 1. Update all show details
       UI.updateSyncText('Fetching episode data...');
       for (const show of shows) {
-        await fetchAndUpdateShow(show.id);
+        try {
+          await fetchAndUpdateShow(show.id);
+        } catch (e) {
+          Storage.addLogEntry('error', 'api', `Failed to update "${show.name}"`, e.message);
+        }
       }
 
       // 2. Sync Stremio
       if (Stremio.isLoggedIn()) {
         UI.updateSyncText('Syncing Stremio...');
-        await Stremio.syncWatchlistStatus();
+        try {
+          await Stremio.syncWatchlistStatus();
+          Storage.addLogEntry('success', 'stremio', 'Stremio watchlist status synced');
+        } catch (e) {
+          Storage.addLogEntry('error', 'stremio', 'Stremio watchlist sync failed', e.message);
+        }
       }
 
       // 3. Full Google Calendar sync
@@ -213,8 +233,10 @@ const App = (() => {
             for (const dup of result.duplicates) {
               const show = freshShows.find(s => dup.key.startsWith(String(s.id) + '_'));
               const msg = `Duplicate calendar events found for ${show ? show.name : dup.key}. What would you like to do?`;
+              Storage.addLogEntry('warning', 'gcal', `Duplicate events detected: ${dup.key}`);
               const action = await UI.showDuplicateDialog(msg);
               await GCal.resolveDuplicate(dup.events, action);
+              Storage.addLogEntry('info', 'gcal', `Duplicate resolved: ${action} for ${dup.key}`);
             }
             UI.showSyncOverlay('Finishing...');
           }
@@ -222,26 +244,36 @@ const App = (() => {
           const summary = [];
           if (result.created > 0) summary.push(`${result.created} created`);
           if (result.updated > 0) summary.push(`${result.updated} updated`);
-          if (result.errors.length > 0) summary.push(`${result.errors.length} errors`);
+          if (result.errors.length > 0) {
+            summary.push(`${result.errors.length} errors`);
+            result.errors.forEach(err => Storage.addLogEntry('error', 'gcal', err));
+          }
+          const calMsg = summary.length > 0 ? `Calendar: ${summary.join(', ')}` : 'Calendar up to date';
+          Storage.addLogEntry(result.errors.length ? 'warning' : 'success', 'gcal', calMsg);
           if (summary.length > 0) {
             UI.toast(`Calendar sync: ${summary.join(', ')}`, result.errors.length ? 'warning' : 'success');
           } else {
             UI.toast('Calendar is up to date', 'success');
           }
         } else {
+          Storage.addLogEntry('error', 'gcal', `Calendar sync failed: ${result.error}`);
           UI.toast(`Calendar sync failed: ${result.error}`, 'error');
         }
       }
 
       Storage.updateLastSync();
+      Storage.addLogEntry('success', 'sync', 'Sync completed successfully');
       UI.renderShows(_currentFilter);
       UI.renderUpcoming();
       UI.updateStatusPills();
       UI.updateSettingsUI();
+      UI.updateLogBadge();
       UI.toast('Sync complete', 'success');
     } catch (e) {
       console.error('[App] fullSync:', e);
+      Storage.addLogEntry('error', 'sync', `Sync failed: ${e.message}`, e.stack);
       UI.toast(`Sync error: ${e.message}`, 'error');
+      UI.updateLogBadge();
     } finally {
       syncBtn.classList.remove('syncing');
       UI.hideSyncOverlay();
@@ -251,17 +283,43 @@ const App = (() => {
   async function silentSync() {
     const shows = Storage.getShows();
     if (shows.length === 0) return;
+    Storage.addLogEntry('info', 'sync', 'Auto-sync started');
+    let hadError = false;
     for (const show of shows) {
-      await fetchAndUpdateShow(show.id);
+      try {
+        await fetchAndUpdateShow(show.id);
+      } catch (e) {
+        hadError = true;
+        Storage.addLogEntry('error', 'api', `Auto-sync: failed to update "${show.name}"`, e.message);
+      }
     }
     if (GCal.isAuthorized()) {
-      const fresh = Storage.getShows();
-      await GCal.fullSync(fresh);
+      try {
+        const fresh = Storage.getShows();
+        const result = await GCal.fullSync(fresh);
+        if (result.success) {
+          if (result.errors.length > 0) {
+            result.errors.forEach(err => Storage.addLogEntry('error', 'gcal', err));
+            hadError = true;
+          }
+          if (result.created > 0 || result.updated > 0) {
+            Storage.addLogEntry('info', 'gcal', `Auto-sync calendar: ${result.created} created, ${result.updated} updated`);
+          }
+        } else {
+          Storage.addLogEntry('error', 'gcal', `Auto-sync calendar failed: ${result.error}`);
+          hadError = true;
+        }
+      } catch (e) {
+        Storage.addLogEntry('error', 'gcal', `Auto-sync calendar exception: ${e.message}`);
+        hadError = true;
+      }
     }
     Storage.updateLastSync();
+    Storage.addLogEntry(hadError ? 'warning' : 'success', 'sync', hadError ? 'Auto-sync completed with errors' : 'Auto-sync completed');
     UI.renderShows(_currentFilter);
     UI.renderUpcoming();
     UI.updateSettingsUI();
+    UI.updateLogBadge();
   }
 
   function scheduleAutoSync() {
@@ -437,6 +495,16 @@ const App = (() => {
       UI.updateStatusPills();
       UI.toast('All data cleared', 'info');
     });
+  }
+
+  // ─── Log Viewer ───
+  function bindLogViewer() {
+    const logBtn = document.getElementById('log-btn');
+    if (logBtn) {
+      logBtn.addEventListener('click', () => {
+        UI.openLogModal();
+      });
+    }
   }
 
   // ─── Close Modals ───

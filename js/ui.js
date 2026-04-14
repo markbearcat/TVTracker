@@ -393,6 +393,131 @@ const UI = (() => {
     document.body.className = `theme-${theme}`;
   }
 
+  // ─── Log Modal ───
+  const LOG_LEVEL_META = {
+    error:   { icon: '✕', label: 'ERROR',   cls: 'log-error' },
+    warning: { icon: '⚠', label: 'WARN',    cls: 'log-warning' },
+    success: { icon: '✓', label: 'OK',      cls: 'log-success' },
+    info:    { icon: 'ℹ', label: 'INFO',    cls: 'log-info' },
+  };
+
+  const SOURCE_LABELS = {
+    sync: 'SYNC', stremio: 'STREMIO', gcal: 'GCAL', api: 'API', app: 'APP',
+  };
+
+  let _logFilter = 'all';
+
+  function openLogModal() {
+    const modal = document.getElementById('log-modal');
+    modal.classList.remove('hidden');
+    renderLogEntries();
+
+    // Bind filter buttons
+    modal.querySelectorAll('.log-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        modal.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _logFilter = btn.dataset.level;
+        renderLogEntries();
+      };
+    });
+
+    document.getElementById('log-clear-btn').onclick = () => {
+      if (!confirm('Clear all log entries?')) return;
+      Storage.clearLog();
+      renderLogEntries();
+      updateLogBadge();
+      toast('Log cleared', 'info');
+    };
+  }
+
+  function renderLogEntries() {
+    const container = document.getElementById('log-entries-container');
+    const statsBar = document.getElementById('log-stats-bar');
+    const stats = Storage.getLogStats();
+    let entries = Storage.getLogEntries();
+
+    // Stats bar
+    statsBar.innerHTML = `
+      <span class="log-stat log-stat-total">${stats.total} entries</span>
+      <span class="log-stat log-stat-error">${stats.errors} errors</span>
+      <span class="log-stat log-stat-warn">${stats.warnings} warnings</span>
+      ${stats.lastError ? `<span class="log-stat log-stat-last">Last error: ${relativeTime(stats.lastError.ts)}</span>` : ''}
+    `;
+
+    // Filter
+    if (_logFilter !== 'all') {
+      entries = entries.filter(e => e.level === _logFilter);
+    }
+
+    if (entries.length === 0) {
+      container.innerHTML = `<div class="log-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <p>No log entries${_logFilter !== 'all' ? ' for this filter' : ''}</p>
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = '';
+
+    // Group by sync session (group entries within 5s of each other by 'sync' source start)
+    let lastDate = null;
+
+    entries.forEach(entry => {
+      const entryDate = new Date(entry.ts).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+      if (entryDate !== lastDate) {
+        const divider = document.createElement('div');
+        divider.className = 'log-date-divider';
+        divider.textContent = entryDate;
+        container.appendChild(divider);
+        lastDate = entryDate;
+      }
+
+      const meta = LOG_LEVEL_META[entry.level] || LOG_LEVEL_META.info;
+      const srcLabel = SOURCE_LABELS[entry.source] || entry.source.toUpperCase();
+      const time = new Date(entry.ts).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+      const el = document.createElement('div');
+      el.className = `log-entry ${meta.cls}`;
+
+      el.innerHTML = `
+        <div class="log-entry-left">
+          <span class="log-level-icon">${meta.icon}</span>
+          <div class="log-entry-content">
+            <div class="log-entry-message">${escapeHtml(entry.message)}</div>
+            ${entry.detail ? `<div class="log-entry-detail">${escapeHtml(entry.detail)}</div>` : ''}
+          </div>
+        </div>
+        <div class="log-entry-right">
+          <span class="log-source-tag">${srcLabel}</span>
+          <span class="log-time">${time}</span>
+        </div>
+      `;
+
+      container.appendChild(el);
+    });
+  }
+
+  function updateLogBadge() {
+    const badge = document.getElementById('log-error-badge');
+    if (!badge) return;
+    const stats = Storage.getLogStats();
+    if (stats.errors > 0) {
+      badge.textContent = stats.errors > 9 ? '9+' : stats.errors;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  function relativeTime(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+    return `${Math.floor(diff/86400000)}d ago`;
+  }
+
   // ─── Install Banner ───
   let _deferredInstall = null;
 
@@ -450,6 +575,8 @@ const UI = (() => {
     updateSettingsUI,
     applyTheme,
     initInstallBanner,
+    openLogModal,
+    updateLogBadge,
     escapeHtml,
   };
 })();
