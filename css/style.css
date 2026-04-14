@@ -122,37 +122,46 @@ body {
 }
 
 /* ─── Topbar ─── */
+/* Ensure the topbar doesn't exceed screen width */
 #topbar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: var(--bg-surface);
-  border-bottom: 2px solid var(--border-strong);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  align-items: center;
+  padding: 8px 12px;
+  width: 100%;
+  box-sizing: border-box; /* Critical: prevents padding from adding to width */
+  overflow: hidden;
 }
 
-.tivo-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--accent);
+/* Let the logo shrink if needed */
+.topbar-left {
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .logo-text {
-  font-family: var(--font-display);
-  font-size: 26px;
-  letter-spacing: 1px;
-  color: var(--text-primary);
-  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Hides "Tracker" if the screen is tiny */
 }
 
-.logo-text em {
-  font-style: normal;
-  color: var(--accent);
+/* Keep the buttons together on the right */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0; /* Prevents the buttons from shrinking or moving off-screen */
+}
+
+/* Hide labels on small screens to save space */
+@media (max-width: 380px) {
+  .pill-label {
+    display: none; /* Only shows the status dots for Stremio/Cal */
+  }
+  
+  .logo-text em {
+    display: none; /* Hides "Tracker" part of logo to save room */
+  }
 }
 
 .topbar-right {
