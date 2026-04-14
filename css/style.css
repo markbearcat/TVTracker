@@ -1255,3 +1255,41 @@ body {
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* Ensure the app fills the screen and respects notches */
+#app {
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Landscape Grid Adjustments */
+@media (orientation: landscape) {
+  #main-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Split screen: My Shows on left, Upcoming on right */
+    gap: 20px;
+    padding: 15px;
+  }
+
+  .shows-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  /* Make modals scrollable if they exceed height in landscape */
+  .modal-panel {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+/* Adaptive scaling for the TV Show cards */
+.shows-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
