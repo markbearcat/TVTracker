@@ -122,26 +122,21 @@ body {
 
 /* ─── Topbar ─── */
 /* Ensure the topbar doesn't exceed screen width */
+/* Ensure the top nav fits on Android mobile */
 #topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  width: 100%;
-  box-sizing: border-box; /* Critical: prevents padding from adding to width */
-  overflow: hidden;
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+  padding: 0 8px !important;
 }
-
-/* Let the logo shrink if needed */
-.topbar-left {
-  flex-shrink: 1;
-  min-width: 0;
+.topbar-right {
+  flex-shrink: 0 !important;
+  display: flex !important;
+  gap: 4px !important;
 }
-
-.logo-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; /* Hides "Tracker" if the screen is tiny */
+@media (max-width: 360px) {
+  .logo-text em { display: none; } /* Show "TiVo" instead of "TiVo Tracker" */
+  .pill-label { display: none; }    /* Icons only for status */
 }
 
 /* Keep the buttons together on the right */
