@@ -4,7 +4,7 @@
   "description": "Track your TV shows, sync with Stremio and Google Calendar",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "background_color": "#1a1916",
   "theme_color": "#1a1916",
   "lang": "en-AU",
