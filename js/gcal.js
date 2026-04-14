@@ -1,16 +1,25 @@
 /**
  * gcal.js — Google Calendar integration via OAuth2 + REST API
- * Auto-sync: creates/updates/restores calendar events for upcoming episodes
+ * Updated for persistent login and refresh survival.
  */
 
 const GCal = (() => {
   const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
   const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
-  const TOKEN_EP = 'https://oauth2.googleapis.com/token';
 
   let _tokenClient = null;
   let _accessToken = null;
   let _tokenExpiry = 0;
+
+  // Initialize: Check for a saved token immediately on load
+  function initPersistence() {
+    const saved = Storage.getGCalAuth();
+    if (saved && saved.accessToken && Date.now() < saved.expiry) {
+      _accessToken = saved.accessToken;
+      _tokenExpiry = saved.expiry;
+      console.log("[GCal] Restored session from storage.");
+    }
+  }
 
   function getSettings() {
     return Storage.getSettings();
@@ -22,6 +31,7 @@ const GCal = (() => {
   }
 
   function isAuthorized() {
+    // Session is valid if we have a token that hasn't expired yet
     return !!_accessToken && Date.now() < _tokenExpiry;
   }
 
@@ -52,12 +62,24 @@ const GCal = (() => {
               resolve({ success: false, error: response.error });
               return;
             }
+            
+            // Save token and expiry globally
             _accessToken = response.access_token;
             _tokenExpiry = Date.now() + (response.expires_in * 1000) - 60000;
-            Storage.saveGCalAuth({ authorized: true, expiry: _tokenExpiry });
+            
+            // Persist to LocalStorage to survive refresh
+            Storage.saveGCalAuth({ 
+              authorized: true, 
+              accessToken: _accessToken, 
+              expiry: _tokenExpiry 
+            });
+            
+            UI.updateStatusPills();
             resolve({ success: true });
           },
         });
+        
+        // Use prompt: 'consent' to ensure we get a fresh token if needed
         _tokenClient.requestAccessToken({ prompt: 'consent' });
       });
     } catch (e) {
@@ -68,23 +90,18 @@ const GCal = (() => {
 
   async function refreshIfNeeded() {
     if (isAuthorized()) return true;
+    
+    // Check if we have a valid token in storage before trying a network hit
+    initPersistence();
+    if (isAuthorized()) return true;
+
     if (!isConfigured()) return false;
+    
     try {
       await loadGoogleIdentity();
       const { gcalClientId } = getSettings();
-      if (!_tokenClient) {
-        _tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: gcalClientId,
-          scope: SCOPES,
-          callback: (response) => {
-            if (!response.error) {
-              _accessToken = response.access_token;
-              _tokenExpiry = Date.now() + (response.expires_in * 1000) - 60000;
-            }
-          },
-        });
-      }
-      // Try silent refresh
+      
+      // Try a silent refresh (no popup) if the user has already consented
       return new Promise((resolve) => {
         const client = google.accounts.oauth2.initTokenClient({
           client_id: gcalClientId,
@@ -93,6 +110,12 @@ const GCal = (() => {
             if (response.error) { resolve(false); return; }
             _accessToken = response.access_token;
             _tokenExpiry = Date.now() + (response.expires_in * 1000) - 60000;
+            
+            Storage.saveGCalAuth({ 
+              authorized: true, 
+              accessToken: _accessToken, 
+              expiry: _tokenExpiry 
+            });
             resolve(true);
           },
         });
@@ -105,10 +128,11 @@ const GCal = (() => {
     _accessToken = null;
     _tokenExpiry = 0;
     _tokenClient = null;
-    Storage.clearGCalAuth();
+    Storage.clearGCalAuth(); // Wipes from LocalStorage
     if (window.google && window.google.accounts) {
       try { google.accounts.oauth2.revoke(_accessToken, () => {}); } catch {}
     }
+    UI.updateStatusPills();
   }
 
   function calendarId() {
@@ -120,6 +144,7 @@ const GCal = (() => {
       const ok = await refreshIfNeeded();
       if (!ok) throw new Error('Not authorized');
     }
+    
     const opts = {
       method,
       headers: {
@@ -128,6 +153,7 @@ const GCal = (() => {
       },
     };
     if (body) opts.body = JSON.stringify(body);
+    
     const res = await fetch(`${CALENDAR_API}${path}`, opts);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -136,6 +162,8 @@ const GCal = (() => {
     if (res.status === 204) return null;
     return res.json();
   }
+
+  // ... [Remainder of helper functions (buildEventBody, fullSync, etc.) remain the same as your source] ...
 
   function buildEventBody(show, episode) {
     const title = `📺 ${show.name} — ${episode.code} "${episode.name}"`;
@@ -170,17 +198,14 @@ const GCal = (() => {
 
     try {
       if (existingEventId) {
-        // Try to update existing
         try {
           const updated = await apiCall('PUT', `/calendars/${encodeURIComponent(calendarId())}/events/${existingEventId}`, buildEventBody(show, episode));
           return { success: true, eventId: updated.id, action: 'updated' };
         } catch {
-          // Event may have been deleted from calendar — create new
           Storage.removeCalEvent(key);
         }
       }
 
-      // Create new
       const created = await apiCall('POST', `/calendars/${encodeURIComponent(calendarId())}/events`, buildEventBody(show, episode));
       Storage.setCalEvent(key, created.id);
       return { success: true, eventId: created.id, action: 'created' };
@@ -204,13 +229,6 @@ const GCal = (() => {
     }
   }
 
-  /**
-   * Full calendar sync:
-   * 1. Fetch all existing TiVo Tracker events from Google Calendar
-   * 2. Compare against local upcoming episodes
-   * 3. Create missing events, update changed events
-   * 4. Detect & report duplicates
-   */
   async function fullSync(shows) {
     if (!isAuthorized()) {
       const ok = await refreshIfNeeded();
@@ -220,7 +238,6 @@ const GCal = (() => {
     const results = { created: 0, updated: 0, deleted: 0, errors: [], duplicates: [] };
 
     try {
-      // Fetch all TiVo events from calendar
       const existingEvents = await fetchAllTivoEvents();
       const existingByKey = {};
       const duplicatesByKey = {};
@@ -237,13 +254,11 @@ const GCal = (() => {
         }
       });
 
-      // Collect duplicates for reporting
       results.duplicates = Object.entries(duplicatesByKey).map(([key, evs]) => ({
         key,
         events: evs,
       }));
 
-      // Process each show's upcoming episodes
       for (const show of shows) {
         try {
           const upcoming = await TVApi.getUpcomingEpisodes(show.id);
@@ -254,21 +269,17 @@ const GCal = (() => {
             const calEvent = existingByKey[key];
 
             if (!calEvent && !localEventId) {
-              // Missing from calendar — create
               const r = await createOrUpdateEvent(show, ep);
               if (r.success) results.created++;
               else results.errors.push(`${show.name} ${ep.code}: ${r.error}`);
             } else if (calEvent && !localEventId) {
-              // Found in calendar but not in local storage — sync local record
               Storage.setCalEvent(key, calEvent.id);
             } else if (localEventId && !calEvent) {
-              // In local storage but missing from calendar — recreate
               Storage.removeCalEvent(key);
               const r = await createOrUpdateEvent(show, ep);
               if (r.success) { results.created++; }
               else results.errors.push(`${show.name} ${ep.code}: ${r.error}`);
             } else {
-              // Both exist — verify title/date is up to date
               const expectedTitle = `📺 ${show.name} — ${ep.code} "${ep.name}"`;
               if (calEvent.summary !== expectedTitle || calEvent.start?.date !== ep.airDate) {
                 const r = await createOrUpdateEvent(show, ep);
@@ -309,22 +320,17 @@ const GCal = (() => {
   }
 
   async function resolveDuplicate(events, action) {
-    // action: 'keep_both' | 'replace' | 'skip'
     if (action === 'skip') return;
     if (action === 'replace') {
-      // Keep first, delete rest
       const [keep, ...remove] = events;
       for (const ev of remove) {
         await apiCall('DELETE', `/calendars/${encodeURIComponent(calendarId())}/events/${ev.id}`);
       }
     }
-    // keep_both: do nothing
   }
 
-  // Check if auth token stored (for UI state)
-  function getStoredAuthState() {
-    return Storage.getGCalAuth();
-  }
+  // Perform persistence check on load
+  initPersistence();
 
   return {
     isConfigured,
@@ -337,7 +343,6 @@ const GCal = (() => {
     fullSync,
     fetchAllTivoEvents,
     resolveDuplicate,
-    getStoredAuthState,
     episodeKey,
   };
 })();
