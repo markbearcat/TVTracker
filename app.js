@@ -16,13 +16,14 @@ const Settings = {
     };
   },
 
-  get() {
-    try { 
-      const stored = JSON.parse(localStorage.getItem(this._key) || '{}');
-      return { ...this._defaults(), ...stored }; 
-    }
-    catch { return this._defaults(); }
-  },
+get() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(this._key) || '{}');
+    return { ...this._defaults(), ...stored };
+  } catch {
+    return this._defaults();
+  }
+},
 
   set(patch) {
     const updated = { ...this.get(), ...patch };
@@ -51,13 +52,13 @@ const State = {
   getShows()         { return this.get().shows; },
   getEpisodes(id)    { return (this.get().episodes[id] || []); },
 
-  addShow(show) {
-    const s = this.get();
-    if (!s.shows.find(x => x.id === show.id)) {
-      s.shows.push({ ...show, addedAt: Date.now() });
-      this.save(s);
-    }
-  },
+addShow(show) {
+  const s = this.get();
+  if (!s.shows.find(x => x.id === show.id)) {
+    s.shows.push({ ...show, addedAt: Date.now() });
+    this.save(s);
+  }
+},,
 
   removeShow(showId) {
     const s = this.get();
