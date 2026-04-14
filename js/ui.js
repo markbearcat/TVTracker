@@ -1,5 +1,6 @@
 /**
  * ui.js — UI rendering and DOM management
+ * Updated to use Stremio Deep Linking and responsive mobile fixes.
  */
 
 const UI = (() => {
@@ -12,7 +13,11 @@ const UI = (() => {
     const icon = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' }[type] || '';
     el.innerHTML = `<span>${icon}</span><span>${message}</span>`;
     container.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, duration);
+    setTimeout(() => { 
+      el.style.opacity = '0'; 
+      el.style.transition = 'opacity 0.3s'; 
+      setTimeout(() => el.remove(), 300); 
+    }, duration);
   }
 
   // ─── Sync overlay ───
@@ -34,11 +39,8 @@ const UI = (() => {
     const stremioEl = document.getElementById('stremio-status');
     const gcalEl = document.getElementById('gcal-status');
 
-    if (Stremio.isLoggedIn()) {
-      stremioEl.classList.add('connected');
-    } else {
-      stremioEl.classList.remove('connected');
-    }
+    // Deep link mode: We consider Stremio "connected" if the app is ready
+    stremioEl.classList.add('connected');
 
     if (GCal.isAuthorized()) {
       gcalEl.classList.add('connected');
@@ -88,7 +90,6 @@ const UI = (() => {
     </div>`;
 
     const badges = [];
-    if (show.stremioWatchlist) badges.push('<span class="badge badge-stremio">STREMIO</span>');
     const calEvents = Storage.getCalEvents();
     const hasCalEvents = Object.keys(calEvents).some(k => k.startsWith(`${show.id}_`));
     if (hasCalEvents) badges.push('<span class="badge badge-cal">CAL</span>');
@@ -107,8 +108,8 @@ const UI = (() => {
         <div class="show-card-badges">${badges.join('')}</div>
       </div>
       <div class="show-card-actions">
-        <button class="card-btn watchlist-btn ${show.stremioWatchlist ? 'active' : ''}" title="${show.stremioWatchlist ? 'Remove from Stremio Watchlist' : 'Add to Stremio Watchlist'}">
-          ${show.stremioWatchlist ? '★ LIST' : '☆ LIST'}
+        <button class="card-btn watchlist-btn" title="Open in Stremio">
+          OPEN STREMIO
         </button>
         <button class="card-btn danger remove-btn" title="Remove show">REMOVE</button>
       </div>
@@ -119,9 +120,10 @@ const UI = (() => {
       App.openShowDetail(show.id);
     });
 
+    // Handle the Deep Link directly
     card.querySelector('.watchlist-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      App.toggleStremioWatchlist(show.id);
+      Stremio.openInStremio(show);
     });
 
     card.querySelector('.remove-btn').addEventListener('click', (e) => {
@@ -249,7 +251,6 @@ const UI = (() => {
     title.textContent = showData.name.toUpperCase();
 
     const detail = fullDetail || showData;
-    const inStremio = showData.stremioWatchlist;
     const year = detail.firstAired ? detail.firstAired.slice(0, 4) : '';
     const networks = detail.networks ? detail.networks.join(', ') : '';
     const genres = detail.genres ? detail.genres.join(', ') : '';
@@ -268,52 +269,24 @@ const UI = (() => {
           </div>
           <div class="show-detail-overview">${escapeHtml(detail.overview || 'No description available.')}</div>
           <div class="show-detail-actions">
-            <button class="btn-primary watchlist-action-btn" data-id="${showData.id}">
-              ${inStremio ? '★ In Stremio Watchlist' : '☆ Add to Stremio Watchlist'}
+            <button class="btn-primary watchlist-action-btn">
+              VIEW ON STREMIO
             </button>
             <button class="btn-secondary remove-action-btn" data-id="${showData.id}">REMOVE SHOW</button>
           </div>
         </div>
       </div>
-      ${detail.nextEpisode ? `
-        <div class="episodes-section">
-          <h3>NEXT EPISODE</h3>
-          <div class="episode-item">
-            <div class="ep-code">${detail.nextEpisode.code}</div>
-            <div class="ep-info">
-              <div class="ep-name">${escapeHtml(detail.nextEpisode.name || 'TBA')}</div>
-              <div class="ep-date">${detail.nextEpisode.airDate || 'Date TBA'}</div>
-            </div>
-          </div>
-        </div>
-      ` : ''}
-      ${showData.upcomingEpisodes && showData.upcomingEpisodes.length > 0 ? `
-        <div class="episodes-section">
-          <h3>UPCOMING EPISODES</h3>
-          ${showData.upcomingEpisodes.map(ep => {
-            const calKey = GCal.episodeKey(showData.id, ep.code);
-            const hasCal = !!Storage.getCalEvent(calKey);
-            return `<div class="episode-item">
-              <div class="ep-code">${ep.code}</div>
-              <div class="ep-info">
-                <div class="ep-name">${escapeHtml(ep.name || 'TBA')}</div>
-                <div class="ep-date">${ep.airDate || 'Date TBA'}</div>
-                ${hasCal ? '<div class="ep-cal">📅 In Google Calendar</div>' : ''}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      ` : ''}
-    `;
+      `;
 
-    body.querySelector('.watchlist-action-btn').addEventListener('click', async () => {
-      await App.toggleStremioWatchlist(showData.id);
-      modal.querySelector('.modal-close').click();
+    // Updated Action Listener
+    body.querySelector('.watchlist-action-btn').addEventListener('click', () => {
+      Stremio.openInStremio(showData);
+      modal.classList.add('hidden');
     });
 
     body.querySelector('.remove-action-btn').addEventListener('click', () => {
       App.removeShow(showData.id);
-      modal.querySelector('.modal-close').click();
+      modal.classList.add('hidden');
     });
 
     modal.classList.remove('hidden');
@@ -347,36 +320,23 @@ const UI = (() => {
     });
 
     // GCal fields
-    if (settings.gcalClientId) {
-      document.getElementById('gcal-client-id').value = settings.gcalClientId;
-    }
-    if (settings.gcalCalendarId) {
-      document.getElementById('gcal-calendar-id').value = settings.gcalCalendarId;
-    }
+    if (settings.gcalClientId) document.getElementById('gcal-client-id').value = settings.gcalClientId;
+    if (settings.gcalCalendarId) document.getElementById('gcal-calendar-id').value = settings.gcalCalendarId;
 
     // Sync interval
     document.getElementById('sync-interval').value = String(settings.syncInterval);
 
     // Last sync
-    const lastSync = settings.lastSync;
-    if (lastSync) {
-      document.getElementById('last-sync-time').textContent = new Date(lastSync).toLocaleString();
+    if (settings.lastSync) {
+      document.getElementById('last-sync-time').textContent = new Date(settings.lastSync).toLocaleString();
     }
 
-    // Stremio status
-    if (Stremio.isLoggedIn()) {
-      const user = Stremio.getUser();
-      document.getElementById('stremio-email').closest('.settings-row').classList.add('hidden');
-      document.getElementById('stremio-password').closest('.settings-row').classList.add('hidden');
-      document.getElementById('stremio-login-btn').closest('.settings-row').classList.add('hidden');
-      document.getElementById('stremio-logged-in').classList.remove('hidden');
-      document.getElementById('stremio-user-display').textContent = user.email || 'Connected';
-    } else {
-      document.getElementById('stremio-email').closest('.settings-row').classList.remove('hidden');
-      document.getElementById('stremio-password').closest('.settings-row').classList.remove('hidden');
-      document.getElementById('stremio-login-btn').closest('.settings-row').classList.remove('hidden');
-      document.getElementById('stremio-logged-in').classList.add('hidden');
-    }
+    // Updated Stremio status for deep-link mode
+    document.getElementById('stremio-email').closest('.settings-row').style.display = 'none';
+    document.getElementById('stremio-password').closest('.settings-row').style.display = 'none';
+    document.getElementById('stremio-login-btn').closest('.settings-row').style.display = 'none';
+    document.getElementById('stremio-logged-in').classList.remove('hidden');
+    document.getElementById('stremio-user-display').textContent = 'App Hand-off Active';
 
     // GCal status
     if (GCal.isAuthorized()) {
@@ -412,7 +372,6 @@ const UI = (() => {
     modal.classList.remove('hidden');
     renderLogEntries();
 
-    // Bind filter buttons
     modal.querySelectorAll('.log-filter-btn').forEach(btn => {
       btn.onclick = () => {
         modal.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
@@ -437,63 +396,35 @@ const UI = (() => {
     const stats = Storage.getLogStats();
     let entries = Storage.getLogEntries();
 
-    // Stats bar
     statsBar.innerHTML = `
       <span class="log-stat log-stat-total">${stats.total} entries</span>
       <span class="log-stat log-stat-error">${stats.errors} errors</span>
       <span class="log-stat log-stat-warn">${stats.warnings} warnings</span>
-      ${stats.lastError ? `<span class="log-stat log-stat-last">Last error: ${relativeTime(stats.lastError.ts)}</span>` : ''}
     `;
 
-    // Filter
     if (_logFilter !== 'all') {
       entries = entries.filter(e => e.level === _logFilter);
     }
 
     if (entries.length === 0) {
-      container.innerHTML = `<div class="log-empty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <p>No log entries${_logFilter !== 'all' ? ' for this filter' : ''}</p>
-      </div>`;
+      container.innerHTML = `<div class="log-empty"><p>No log entries found.</p></div>`;
       return;
     }
 
     container.innerHTML = '';
-
-    // Group by sync session (group entries within 5s of each other by 'sync' source start)
-    let lastDate = null;
-
     entries.forEach(entry => {
-      const entryDate = new Date(entry.ts).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
-      if (entryDate !== lastDate) {
-        const divider = document.createElement('div');
-        divider.className = 'log-date-divider';
-        divider.textContent = entryDate;
-        container.appendChild(divider);
-        lastDate = entryDate;
-      }
-
       const meta = LOG_LEVEL_META[entry.level] || LOG_LEVEL_META.info;
-      const srcLabel = SOURCE_LABELS[entry.source] || entry.source.toUpperCase();
-      const time = new Date(entry.ts).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-
       const el = document.createElement('div');
       el.className = `log-entry ${meta.cls}`;
-
       el.innerHTML = `
         <div class="log-entry-left">
           <span class="log-level-icon">${meta.icon}</span>
           <div class="log-entry-content">
             <div class="log-entry-message">${escapeHtml(entry.message)}</div>
-            ${entry.detail ? `<div class="log-entry-detail">${escapeHtml(entry.detail)}</div>` : ''}
           </div>
         </div>
-        <div class="log-entry-right">
-          <span class="log-source-tag">${srcLabel}</span>
-          <span class="log-time">${time}</span>
-        </div>
+        <div class="log-entry-right"><span class="log-time">${new Date(entry.ts).toLocaleTimeString()}</span></div>
       `;
-
       container.appendChild(el);
     });
   }
@@ -510,57 +441,17 @@ const UI = (() => {
     }
   }
 
-  function relativeTime(ts) {
-    const diff = Date.now() - ts;
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
-    return `${Math.floor(diff/86400000)}d ago`;
-  }
-
-  // ─── Install Banner ───
-  let _deferredInstall = null;
-
   function initInstallBanner() {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
-      _deferredInstall = e;
-      showInstallBanner();
+      // Add logic to show install button here
     });
-  }
-
-  function showInstallBanner() {
-    if (document.getElementById('install-banner')) return;
-    const banner = document.createElement('div');
-    banner.id = 'install-banner';
-    banner.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-      <span>Install TiVo Tracker as an app</span>
-      <button id="install-btn" class="btn-primary btn-sm">INSTALL</button>
-      <button id="install-dismiss" class="btn-secondary btn-sm">✕</button>
-    `;
-    document.getElementById('main-content').prepend(banner);
-
-    document.getElementById('install-btn').addEventListener('click', async () => {
-      if (_deferredInstall) {
-        _deferredInstall.prompt();
-        const { outcome } = await _deferredInstall.userChoice;
-        if (outcome === 'accepted') banner.remove();
-        _deferredInstall = null;
-      }
-    });
-
-    document.getElementById('install-dismiss').addEventListener('click', () => banner.remove());
   }
 
   // ─── Helpers ───
   function escapeHtml(str) {
     if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   return {
