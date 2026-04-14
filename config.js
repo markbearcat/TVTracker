@@ -5,8 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CONFIG_DEFAULTS = {
-  GOOGLE_CLIENT_ID: 'your-id-here.apps.googleusercontent.com',
   CALENDAR_ID: 'primary',
   SYNC_DAYS_AHEAD: 0,
-  AUTO_SYNC: true
+  AUTO_SYNC: true,
 };
