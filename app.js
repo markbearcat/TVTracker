@@ -536,8 +536,9 @@ function closeModal() { document.getElementById('modal-overlay')?.remove(); }
 // ── UI ─────────────────────────────────────────────────────────────
 
 const UI = {
-  _searchResults:[],
-  _discoverResults:[],
+  _searchResults: [],
+  _discoverCache: [],
+  _discoverCacheKey: null,
 
   init() {
     this.renderAll();
@@ -617,7 +618,7 @@ const UI = {
       e.target.value='';
     });
 
-    document.getElementById('install-btn').addEventListener('click',()=>Install.trigger());
+    document.getElementById('install-btn')?.addEventListener('click',()=>Install.trigger());
   },
 
   populateSettingsForm() {
@@ -909,18 +910,21 @@ const UI = {
 
   bindDiscover() {
     const inp = document.getElementById('discover-input');
+    const refreshBtn = document.getElementById('discover-refresh-btn');
+    if (!inp || !refreshBtn) return; // elements not in DOM yet — skip safely
+
     let t;
     inp.addEventListener('input', () => {
       clearTimeout(t);
       const q = inp.value.trim();
       if (!q) {
-        document.getElementById('discover-interest').classList.add('hidden');
+        document.getElementById('discover-interest')?.classList.add('hidden');
         return;
       }
       t = setTimeout(() => this._doInterestSearch(q), 450);
     });
 
-    document.getElementById('discover-refresh-btn').addEventListener('click', () => {
+    refreshBtn.addEventListener('click', () => {
       this._discoverCacheKey = null;
       this._ensureDiscover();
     });
@@ -1017,7 +1021,7 @@ const UI = {
     });
   },
 
-
+  updateAuthBtn() {
     const btn=document.getElementById('auth-btn'); if (!btn) return;
     btn.textContent=GAuth.isConnected()?'Google ✓':'Sign in';
     btn.classList.toggle('signed-in',GAuth.isConnected());
