@@ -1,119 +1,145 @@
-# TiVo Tracker 📺
+# 📺 TV Tracker
 
-A vintage TiVo-inspired Progressive Web App (PWA) for tracking your TV shows, syncing with Stremio, and auto-adding upcoming episodes to Google Calendar.
+A Progressive Web App (PWA) that tracks your TV shows, syncs upcoming episodes to Google Calendar, and links to Stremio — installable on Android.
 
 ## Features
 
-- 🔍 **Search & Track** — Search TMDB for any TV show and add to your personal list
-- ⭐ **Stremio Watchlist** — Add shows directly to your Stremio library (stays logged in)
-- 📅 **Google Calendar Sync** — Upcoming episodes auto-added as calendar events
-- 🔄 **Smart Sync** — Detects missing calendar entries and recreates them; flags duplicates
-- 💾 **Local Storage** — All data stored on-device; no account needed
-- 📦 **Backup & Restore** — Export/import your show list as JSON
-- 🎨 **TiVo Aesthetic** — Vintage CRT-inspired UI, monochromatic with amber highlights
-- 🌓 **Light/Dark/Auto** — Follows system theme or set manually
-- 📱 **Install on Android** — Full PWA, installable from Chrome/Edge
+- **Search** any TV show via the TVMaze database
+- **Track** shows you're currently watching
+- **Auto-sync** all upcoming episodes to Google Calendar when you add a show
+- **Smart sync** — detects added, changed, or removed episodes and updates your calendar accordingly
+- **Stremio integration** — one-tap to open any show in Stremio
+- **Installable on Android** as a full PWA (works like a native app)
+- **Offline-capable** via service worker caching
 
 ---
 
-## Quick Start (GitHub Pages)
+## Setup
 
-1. **Fork** this repository
-2. Go to **Settings → Pages** → Source: `main` branch, root `/`
-3. Your app will be live at `https://yourusername.github.io/tivo-tracker/`
-4. Visit on Android Chrome → tap **⋮ menu → Add to Home Screen**
+### 1. Fork & Host on GitHub Pages
 
----
-
-## Setup Instructions
-
-### 1. TMDB API (TV Data)
-The app uses a public TMDB API key by default. For production, get your own free key at [themoviedb.org](https://www.themoviedb.org/settings/api) and replace `API_KEY` in `js/api.js`.
-
-### 2. Stremio
-- Open Settings in the app
-- Enter your Stremio email and password
-- Tap **Connect to Stremio**
-- Credentials are stored only on your device
-
-### 3. Google Calendar (required for calendar sync)
-
-You need to create a Google OAuth 2.0 Client ID:
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or use existing)
-3. Enable **Google Calendar API**: APIs & Services → Library → search "Google Calendar API" → Enable
-4. Go to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
-5. Application type: **Web application**
-6. Add your GitHub Pages URL to **Authorized JavaScript origins** (e.g., `https://yourusername.github.io`)
-7. Copy the **Client ID**
-8. Open the app → Settings → Google Calendar → paste your Client ID → Connect
-
-> **Note:** Your Client ID is stored only on your device. The app never sends it anywhere.
+1. Fork this repository (or push the files to a new GitHub repo)
+2. Go to **Settings → Pages**
+3. Under **Source**, select **GitHub Actions**
+4. Push any commit — the workflow auto-deploys to `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
 
 ---
 
-## How Sync Works
+### 2. Set up Google Calendar API
 
-- **On first connect**, the app fetches upcoming episodes for all your shows and creates Google Calendar events
-- **On each sync**, it:
-  1. Checks all tracked episodes against your Google Calendar
-  2. **Recreates any missing events** (if you accidentally deleted them, they come back)
-  3. **Updates changed events** (if episode title or date changed)
-  4. **Flags duplicates** and asks what you'd like to do (keep both / replace / skip)
-- Auto-sync runs on a schedule (configurable: hourly, 6h, daily, or manual)
+You need a Google Cloud project to enable Calendar sync.
 
----
+#### Step 1 — Create a Google Cloud project
 
-## File Structure
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Click **Select a project → New Project**
+3. Name it anything (e.g. "TV Tracker") and click **Create**
 
-```
-tivo-tracker/
-├── index.html          # App shell
-├── manifest.json       # PWA manifest (Android install)
-├── sw.js               # Service Worker (offline support)
-├── css/
-│   └── style.css       # Vintage TiVo theme
-├── js/
-│   ├── storage.js      # Local storage manager
-│   ├── api.js          # TMDB TV data API
-│   ├── stremio.js      # Stremio integration
-│   ├── gcal.js         # Google Calendar integration
-│   ├── ui.js           # UI rendering
-│   └── app.js          # Main controller
-└── icons/
-    ├── icon-192.png    # App icon
-    └── icon-512.png    # App icon (large)
+#### Step 2 — Enable the Calendar API
+
+1. In your project, go to **APIs & Services → Library**
+2. Search for **Google Calendar API** and click **Enable**
+
+#### Step 3 — Create OAuth 2.0 credentials
+
+1. Go to **APIs & Services → Credentials**
+2. Click **+ Create Credentials → OAuth client ID**
+3. If prompted, configure the **OAuth consent screen** first:
+   - User Type: **External**
+   - App name: `TV Tracker`
+   - Add your email as a test user
+   - Scopes: add `https://www.googleapis.com/auth/calendar.events`
+4. Back in Credentials → Create OAuth client ID:
+   - Application type: **Web application**
+   - Name: `TV Tracker`
+   - **Authorized JavaScript origins** — add:
+     ```
+     https://YOUR_USERNAME.github.io
+     ```
+   - **Authorized redirect URIs** — add:
+     ```
+     https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/
+     ```
+   - Click **Create**
+5. Copy the **Client ID** (looks like `123456789.apps.googleusercontent.com`)
+
+#### Step 4 — Add your Client ID
+
+Open `config.js` and replace the placeholder:
+
+```js
+GOOGLE_CLIENT_ID: '123456789-xxxxxxxxxxxx.apps.googleusercontent.com',
 ```
 
----
-
-## Backup & Restore
-
-- **Export**: Settings → Data & Backup → Export Backup (saves `.json` file)
-- **Import**: Settings → Data & Backup → Import Backup (restores shows and calendar event IDs)
-- Credentials (Stremio, Google Client ID) are **not** included in backups for security
+Commit and push — GitHub Actions will redeploy automatically.
 
 ---
 
-## Privacy
+### 3. Install on Android
 
-- All data is stored **locally on your device** using `localStorage`
-- No server, no account, no tracking
-- Google Calendar access uses OAuth — your Google password is never seen by the app
-- Stremio password is stored locally in encrypted form via `localStorage`
+1. Open the app URL in **Chrome** on your Android device
+2. Tap the **⋮ menu → Add to Home screen**
+3. Tap **Install**
 
----
-
-## Android Installation
-
-1. Open the app URL in **Chrome for Android**
-2. A banner will appear: "Install TiVo Tracker as an app" — tap **Install**
-3. Or: tap **⋮ (three dots) → Add to Home screen**
-4. The app installs like a native app with its own icon
+The app will appear on your home screen and run like a native app.
 
 ---
 
-## License
+## How it works
 
-MIT — free to use, modify, and deploy.
+### Adding a show
+When you tap **+ Track** on a search result:
+1. The show is saved locally
+2. If you're signed in to Google, all future episodes are immediately fetched and added to your Google Calendar
+3. Each calendar event includes: show name, episode code + title, airtime, network, and episode description
+
+### Syncing
+Tap the **↻ button** in the header (or it runs automatically on app open) to:
+- Fetch the latest episode schedule for every tracked show
+- **Create** calendar events for any new future episodes
+- **Update** existing calendar events if the airdate, airtime, or title changed
+- **Delete** calendar events for episodes that were removed from the schedule
+
+### Removing a show
+Tap ✕ on any show in **My Shows** — this removes the show and deletes all its future calendar events.
+
+---
+
+## Configuration options (`config.js`)
+
+| Option | Default | Description |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | (required) | Your Google OAuth client ID |
+| `CALENDAR_ID` | `'primary'` | Which calendar to sync to |
+| `SYNC_DAYS_AHEAD` | `0` (unlimited) | How many days ahead to sync |
+| `AUTO_SYNC` | `true` | Sync automatically on app open |
+
+---
+
+## Local development
+
+Just open `index.html` in a browser — no build step required.
+
+For service worker to work locally, serve from `localhost`:
+
+```bash
+npx serve .
+# or
+python3 -m http.server 8080
+```
+
+---
+
+## Data storage
+
+All data is stored in your browser's `localStorage` — nothing is sent to any server other than TVMaze (for show data) and Google Calendar (for calendar events).
+
+---
+
+## Tech stack
+
+- Vanilla JS / HTML / CSS — no build step, no frameworks
+- [TVMaze API](https://www.tvmaze.com/api) — free, no key required
+- [Google Identity Services](https://developers.google.com/identity/gsi/web) — OAuth 2.0
+- [Google Calendar API v3](https://developers.google.com/calendar)
+- Service Worker — offline support + PWA installability

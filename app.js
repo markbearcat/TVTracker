@@ -59,46 +59,132 @@ const TVMaze = {
 };
 
 // ── Google Auth ────────────────────────────────────────────────────
+// Uses silent token refresh so the connection stays permanent.
+// On first sign-in the user sees the Google consent popup once.
+// After that, tokens are refreshed silently in the background
+// every 45 min (tokens expire after 60 min) and on every app open.
 
 const GAuth = {
-  _token:null, _expiry:0, _client:null, _res:null, _rej:null,
-  isConnected() { return !!(this._token && Date.now()<this._expiry-60000); },
-  async ensureToken() {
-    if (this.isConnected()) return this._token;
-    return new Promise((res,rej) => {
-      this._res=res; this._rej=rej;
+  _token: null,
+  _expiry: 0,
+  _client: null,
+  _res: null,
+  _rej: null,
+  _refreshTimer: null,
+  _PERSIST_KEY: 'tvtracker_google_connected',
+
+  isConnected() { return !!(this._token && Date.now() < this._expiry - 60000); },
+
+  // Remember that user has signed in — survives app restarts
+  _markConnected()    { localStorage.setItem(this._PERSIST_KEY, '1'); },
+  _clearConnected()   { localStorage.removeItem(this._PERSIST_KEY); },
+  wasConnected()      { return !!localStorage.getItem(this._PERSIST_KEY); },
+
+  // Request a token. prompt='' means fully silent if Google session exists.
+  // prompt='consent' forces the account picker (used on first sign-in only).
+  _requestToken(prompt = '') {
+    return new Promise((res, rej) => {
+      this._res = res;
+      this._rej = rej;
       if (!this._client) { rej('No Google client — add your Client ID in Settings.'); return; }
-      this._client.requestAccessToken({prompt:''});
+      this._client.requestAccessToken({ prompt });
     });
   },
+
+  async ensureToken() {
+    if (this.isConnected()) return this._token;
+    // Try silent refresh first — no popup
+    return this._requestToken('');
+  },
+
+  _onTokenResponse(resp) {
+    if (resp.error) {
+      // Silent refresh failed (session expired or revoked)
+      const wasPersisted = this.wasConnected();
+      this._rej?.(resp.error);
+      this._res = this._rej = null;
+      if (wasPersisted && resp.error !== 'popup_closed_by_user') {
+        // Session gone — clear persisted state, prompt fresh sign-in
+        this._clearConnected();
+        this._token = null;
+        this._expiry = 0;
+        UI.updateAuthBtn();
+        this._scheduleRefresh(0); // cancel timer
+      }
+      return;
+    }
+    this._token = resp.access_token;
+    this._expiry = Date.now() + resp.expires_in * 1000;
+    this._markConnected();
+    this._res?.(this._token);
+    this._res = this._rej = null;
+    UI.updateAuthBtn();
+    // Schedule next silent refresh at 45 min (before 60-min expiry)
+    this._scheduleRefresh(45 * 60 * 1000);
+  },
+
+  _scheduleRefresh(delayMs) {
+    clearTimeout(this._refreshTimer);
+    if (delayMs <= 0) return;
+    this._refreshTimer = setTimeout(async () => {
+      if (!this._client) return;
+      try { await this._requestToken(''); }
+      catch(e) { console.warn('Silent token refresh failed:', e); }
+    }, delayMs);
+  },
+
   _init() {
-    const id=Settings.clientId();
-    if (!window.google||!id) return;
+    const id = Settings.clientId();
+    if (!window.google || !id) return;
     try {
-      this._client=google.accounts.oauth2.initTokenClient({
-        client_id:id,
-        scope:'https://www.googleapis.com/auth/calendar.events',
-        callback:resp => {
-          if (resp.error) { this._rej?.(resp.error); return; }
-          this._token=resp.access_token;
-          this._expiry=Date.now()+resp.expires_in*1000;
-          this._res?.(this._token);
-          this._res=this._rej=null;
-          UI.updateAuthBtn();
-        }
+      this._client = google.accounts.oauth2.initTokenClient({
+        client_id: id,
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        callback: resp => this._onTokenResponse(resp)
       });
-    } catch(e) { console.error('GSI init:',e); }
+    } catch(e) { console.error('GSI init:', e); return; }
+
+    // If the user was previously connected, silently restore the token now.
+    // No popup — works as long as their Google session is active in Chrome.
+    if (this.wasConnected()) {
+      this._requestToken('').catch(() => {
+        // Silent restore failed quietly — button stays "Sign in"
+      });
+    }
   },
-  init()   { this._init(); },
-  reinit() { this._token=null; this._expiry=0; this._client=null; this._init(); UI.updateAuthBtn(); },
+
+  init() { this._init(); },
+
+  reinit() {
+    clearTimeout(this._refreshTimer);
+    this._token = null; this._expiry = 0; this._client = null;
+    this._init();
+    UI.updateAuthBtn();
+  },
+
   signIn() {
-    if (!Settings.clientId()) { toast('Add your Google Client ID in Settings first','warning'); UI.switchTab('settings'); return; }
+    if (!Settings.clientId()) {
+      toast('Add your Google Client ID in Settings first', 'warning');
+      UI.switchTab('settings');
+      return;
+    }
     if (!this._client) this._init();
-    this.ensureToken().then(()=>{ toast('Signed in to Google ✓','success'); UI.updateAuthBtn(); }).catch(e=>toast(String(e),'error'));
+    // First attempt: silent. If that fails (no session), show picker.
+    this._requestToken('')
+      .then(() => { toast('Signed in to Google ✓', 'success'); UI.updateAuthBtn(); })
+      .catch(() => {
+        // Silent failed — show full consent picker
+        this._requestToken('select_account')
+          .then(() => { toast('Signed in to Google ✓', 'success'); UI.updateAuthBtn(); })
+          .catch(e => toast(String(e), 'error'));
+      });
   },
+
   signOut() {
-    if (this._token) try { google.accounts.oauth2.revoke(this._token); } catch(_){}
-    this._token=null; this._expiry=0;
+    clearTimeout(this._refreshTimer);
+    if (this._token) try { google.accounts.oauth2.revoke(this._token); } catch(_) {}
+    this._token = null; this._expiry = 0;
+    this._clearConnected();
     UI.updateAuthBtn();
     toast('Signed out of Google');
   }
@@ -189,7 +275,7 @@ const GCal = {
 
 // ── Stremio ────────────────────────────────────────────────────────
 
-const Stremio = {
+const TVStremio = {
   BASE:'https://api.strem.io/api',
   _authKey: null,
 
@@ -458,7 +544,7 @@ const UI = {
     this.bindSearch();
     this.bindSettings();
     GAuth.init();
-    Stremio.init();
+    TVStremio.init();
     this.updateAuthBtn();
     this.updateStremioBtn();
     this.populateSettingsForm();
@@ -476,7 +562,7 @@ const UI = {
     document.getElementById('sync-btn').addEventListener('click',()=>{ if(!Sync.running) Sync.syncAll(); });
     document.getElementById('auth-btn').addEventListener('click',()=>GAuth.isConnected()?GAuth.signOut():GAuth.signIn());
     document.getElementById('stremio-header-btn').addEventListener('click',()=>{
-      if (Stremio.isConnected()) this.showStremioSignOutConfirm();
+      if (TVStremio.isConnected()) this.showStremioSignOutConfirm();
       else this.showStremioLogin();
     });
   },
@@ -589,9 +675,10 @@ const UI = {
         this.renderShows();
         if (GAuth.isConnected()) {
           toast(`Syncing ${show.name} to calendar…`);
-          try { const r=await Sync.syncShow(show); toast(`${show.name}: +${r.created} episodes synced`,'success'); this.renderAll(); }
+          let syncResult = null;
+          try { syncResult=await Sync.syncShow(show); toast(`${show.name}: +${syncResult.created} episodes synced`,'success'); this.renderAll(); }
           catch(e) { toast('Calendar sync failed: '+e.message,'error'); }
-          if (r?.duplicates?.length) UI.showDuplicatesModal(r.duplicates);
+          if (syncResult?.duplicates?.length) UI.showDuplicatesModal(syncResult.duplicates);
         }
       });
     });
@@ -642,7 +729,7 @@ const UI = {
       btn.addEventListener('click',async()=>{
         const showId=Number(btn.dataset.showId);
         const show=shows.find(s=>s.id===showId);
-        if (!Stremio.isConnected()) { this.showStremioLogin(()=>this._doAddToWatchlist(show,btn)); return; }
+        if (!TVStremio.isConnected()) { this.showStremioLogin(()=>this._doAddToWatchlist(show,btn)); return; }
         await this._doAddToWatchlist(show,btn);
       });
     });
@@ -668,7 +755,7 @@ const UI = {
   async _doAddToWatchlist(show, btn) {
     if (btn) { btn.disabled=true; }
     try {
-      await Stremio.addToLibrary(show);
+      await TVStremio.addToLibrary(show);
       toast(`${show.name} added to Stremio watchlist ✓`,'success');
       this.renderShows();
     } catch(e) {
@@ -729,7 +816,7 @@ const UI = {
 
   updateStremioBtn() {
     const btn=document.getElementById('stremio-header-btn'); if (!btn) return;
-    const connected=Stremio.isConnected();
+    const connected=TVStremio.isConnected();
     btn.classList.toggle('signed-in',connected);
     btn.title=connected?'Stremio connected — click to sign out':'Sign in to Stremio';
     btn.querySelector('.stremio-dot').style.opacity=connected?'1':'0';
@@ -788,7 +875,7 @@ const UI = {
       if (!email||!pass) { errEl.textContent='Enter your email and password'; errEl.classList.remove('hidden'); return; }
       loginBtn.textContent='Signing in…'; loginBtn.disabled=true;
       try {
-        await Stremio.login(email,pass);
+        await TVStremio.login(email,pass);
         closeModal();
         toast('Signed in to Stremio ✓','success');
         this.updateStremioBtn();
@@ -824,13 +911,13 @@ const UI = {
     document.getElementById('stremio-sync-btn').addEventListener('click',async()=>{
       document.getElementById('stremio-sync-btn').textContent='Syncing…';
       document.getElementById('stremio-sync-btn').disabled=true;
-      const r=await Stremio.syncLibrary();
+      const r=await TVStremio.syncLibrary();
       closeModal();
       this.renderShows();
       toast(`Synced to Stremio: ${r.added} added${r.errors?`, ${r.errors} errors`:''}`, r.errors?'warning':'success');
     });
 
-    document.getElementById('stremio-signout-btn').addEventListener('click',()=>{ Stremio.logout(); closeModal(); this.renderShows(); });
+    document.getElementById('stremio-signout-btn').addEventListener('click',()=>{ TVStremio.logout(); closeModal(); this.renderShows(); });
     document.getElementById('modal-cancel-btn').addEventListener('click',closeModal);
   },
 

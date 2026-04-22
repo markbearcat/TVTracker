@@ -1,72 +1,51 @@
-/**
- * sw.js — Service Worker for TiVo Tracker PWA
- * Enables offline access and installability on Android
- */
-
-const CACHE_NAME = 'tivo-tracker-v1';
-const STATIC_ASSETS = [
-  '/TVTracker/',
-  '/TVTracker/index.html',
-  '/TVTracker/css/style.css',
-  '/TVTracker/js/storage.js',
-  '/TVTracker/js/api.js',
-  '/TVTracker/js/stremio.js',
-  '/TVTracker/js/gcal.js',
-  '/TVTracker/js/ui.js',
-  '/TVTracker/js/app.js',
-  '/TVTracker/manifest.json',
-  '/TVTracker/icons/icon-192.png',
-  '/TVTracker/icons/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap',
+const CACHE_NAME = 'tv-tracker-v1';
+const ASSETS = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './config.js',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-// Install — cache core assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return Promise.allSettled(
-        STATIC_ASSETS.map(url => cache.add(url).catch(() => null))
-      );
-    }).then(() => self.skipWaiting())
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate — clean old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', e => {
+  e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
-// Fetch — cache-first for static, network-first for API
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
 
-  // Don't intercept Google OAuth or Stremio API calls
-  if (
-    url.hostname.includes('google') ||
-    url.hostname.includes('strem.io') ||
-    url.hostname.includes('themoviedb.org') ||
-    url.hostname.includes('googleapis.com')
-  ) {
-    return; // Let these go straight to network
+  // Network-first for API calls
+  if (url.hostname.includes('tvmaze.com') || url.hostname.includes('googleapis.com')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
+  // Cache-first for app shell
+  e.respondWith(
+    caches.match(e.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
+      return fetch(e.request).then(response => {
         if (!response || response.status !== 200 || response.type === 'opaque') return response;
         const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         return response;
-      }).catch(() => {
-        // Offline fallback
-        if (event.request.destination === 'document') {
-          return caches.match('/TVTracker/index.html');
-        }
       });
     })
   );

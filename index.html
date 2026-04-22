@@ -2,322 +2,241 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#f0ece0" media="(prefers-color-scheme: light)">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#50AA3C">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="TiVo Tracker">
-  <meta name="description" content="Track your TV shows, sync with Stremio and Google Calendar">
-  <title>TiVo Tracker</title>
+  <meta name="apple-mobile-web-app-title" content="TV Tracker">
+  <meta name="description" content="Track TV shows · sync to Google Calendar · add to Stremio">
+  <title>TV Tracker</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <script>
+    (function(){var t=localStorage.getItem('tvtracker_theme')||'auto';if(t!=='auto')document.documentElement.setAttribute('data-theme',t);})();
+  </script>
 </head>
-<body class="theme-auto">
-
-<!-- Scanline overlay -->
-<div class="scanlines" aria-hidden="true"></div>
-<div class="crt-vignette" aria-hidden="true"></div>
-
-<!-- App Shell -->
+<body>
 <div id="app">
 
-  <!-- Header / Nav Bar -->
-  <header id="topbar">
-    <div class="topbar-left">
-      <div class="tivo-logo">
-        <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 18 Q18 8 26 18 Q18 28 10 18Z" fill="currentColor" opacity="0.6"/><circle cx="18" cy="18" r="4" fill="currentColor"/></svg>
-        <span class="logo-text">TiVo<em>Tracker</em></span>
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-content">
+      <div class="header-title">
+        <div class="logo-bug">
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="5" width="16" height="10" rx="2" fill="rgba(0,0,0,0.3)"/>
+            <rect x="3.5" y="6.5" width="13" height="7" rx="1" fill="rgba(255,255,255,0.12)"/>
+            <rect x="4.5" y="7.5" width="11" height="5" rx="0.8" fill="rgba(255,255,255,0.82)"/>
+            <line x1="4.5" y1="9"   x2="15.5" y2="9"   stroke="rgba(0,0,0,0.1)" stroke-width="0.6"/>
+            <line x1="4.5" y1="10.5" x2="15.5" y2="10.5" stroke="rgba(0,0,0,0.1)" stroke-width="0.6"/>
+            <rect x="7.5" y="15" width="1.5" height="2.5" rx="0.5" fill="rgba(0,0,0,0.35)"/>
+            <rect x="11" y="15" width="1.5" height="2.5" rx="0.5" fill="rgba(0,0,0,0.35)"/>
+            <rect x="6" y="17.3" width="8" height="1.2" rx="0.6" fill="rgba(0,0,0,0.35)"/>
+          </svg>
+        </div>
+        <h1>TV <span>Tracker</span></h1>
       </div>
-    </div>
-    <div class="topbar-right">
-      <div class="status-pills">
-        <span id="stremio-status" class="status-pill" title="Stremio">
-          <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>
-          <span class="pill-label">Stremio</span>
-        </span>
-        <span id="gcal-status" class="status-pill" title="Google Calendar">
-          <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>
-          <span class="pill-label">Cal</span>
-        </span>
+
+      <div class="header-actions">
+        <!-- Stremio button -->
+        <button id="stremio-header-btn" class="hdr-icon-btn" title="Sign in to Stremio">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <polygon points="4,3 4,13 13.5,8" fill="currentColor"/>
+          </svg>
+          <span class="stremio-dot" style="opacity:0"></span>
+        </button>
+        <!-- Sync button -->
+        <button id="sync-btn" class="hdr-icon-btn" title="Sync all shows">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <path d="M13 2.5A6.5 6.5 0 1 0 14.5 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <polyline points="10.5,0.5 14.5,2.5 10.5,4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <!-- Google auth button -->
+        <button id="auth-btn" class="hdr-text-btn">Sign in</button>
       </div>
-      <button id="log-btn" class="icon-btn" title="Sync Log" aria-label="View sync log">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        <span id="log-error-badge" class="log-badge hidden"></span>
-      </button>
-      <button id="sync-btn" class="icon-btn" title="Sync Now" aria-label="Sync">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-      </button>
-      <button id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main id="main-content">
+  <div id="status-msg" class="status-bar hidden"></div>
 
-    <!-- Search Bar -->
-    <section id="search-section">
-      <div class="search-box">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="search-input" placeholder="Search for a TV show..." autocomplete="off" spellcheck="false">
-        <button id="search-clear" class="clear-btn" aria-label="Clear search">✕</button>
+  <!-- ── Tab bar ──────────────────────────────────────────────── -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="search">
+      <span class="tab-icon"><svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.7"/><line x1="11" y1="11" x2="15.5" y2="15.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+      Search
+    </button>
+    <button class="tab-btn" data-tab="shows">
+      <span class="tab-icon"><svg width="17" height="17" viewBox="0 0 17 17" fill="none"><rect x="1.5" y="2.5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="4.5" width="9" height="5" rx="0.8" fill="currentColor" opacity="0.2"/><line x1="5.5" y1="13.5" x2="7.8" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11.5" y1="13.5" x2="9.2" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="13.5" x2="13" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+      My Shows
+    </button>
+    <button class="tab-btn" data-tab="upcoming">
+      <span class="tab-icon"><svg width="17" height="17" viewBox="0 0 17 17" fill="none"><rect x="1.5" y="3" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><line x1="1.5" y1="7" x2="15.5" y2="7" stroke="currentColor" stroke-width="1.4"/><line x1="5.5" y1="1" x2="5.5" y2="5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="11.5" y1="1" x2="11.5" y2="5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><polygon points="6.5,9.5 6.5,13.5 11.5,11.5" fill="currentColor" opacity="0.65"/></svg></span>
+      Upcoming
+    </button>
+    <button class="tab-btn" data-tab="settings">
+      <span class="tab-icon"><svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="8.5" cy="8.5" r="2.3" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 1v1.8M8.5 14.2v1.8M1 8.5h1.8M14.2 8.5H16M3 3l1.3 1.3M12.7 12.7l1.3 1.3M14 3l-1.3 1.3M4.3 12.7L3 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+      Settings
+    </button>
+  </nav>
+
+  <!-- ── Search ───────────────────────────────────────────────── -->
+  <div id="tab-search" class="tab-pane active">
+    <div class="search-bar">
+      <div class="search-wrap">
+        <span class="search-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.6"/><line x1="8.7" y1="8.7" x2="12" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <input type="text" id="search-input" placeholder="Search TV shows…" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
-      <div id="search-results" class="search-dropdown hidden"></div>
-    </section>
-
-    <!-- My Shows -->
-    <section id="my-shows-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-          MY SHOWS
-        </h2>
-        <span id="show-count" class="count-badge">0</span>
-      </div>
-
-      <!-- Filter tabs -->
-      <div class="filter-tabs" role="tablist">
-        <button class="tab active" data-filter="all" role="tab">ALL</button>
-        <button class="tab" data-filter="airing" role="tab">AIRING</button>
-        <button class="tab" data-filter="upcoming" role="tab">UPCOMING</button>
-        <button class="tab" data-filter="ended" role="tab">ENDED</button>
-      </div>
-
-      <div id="shows-grid" class="shows-grid">
-        <div class="empty-state">
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="8" y="14" width="48" height="36" rx="3"/><line x1="8" y1="50" x2="0" y2="58"/><line x1="56" y1="50" x2="64" y2="58"/><line x1="20" y1="58" x2="44" y2="58"/><rect x="20" y="24" width="24" height="16" rx="1"/></svg>
-          <p>Search for shows to add them to your list</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Upcoming Episodes -->
-    <section id="upcoming-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          UPCOMING EPISODES
-        </h2>
-      </div>
-      <div id="upcoming-list" class="upcoming-list">
-        <p class="empty-text">No upcoming episodes tracked yet.</p>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Settings Modal -->
-  <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Settings">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h2>SETTINGS</h2>
-        <button class="modal-close" aria-label="Close">✕</button>
-      </div>
-      <div class="modal-body">
-
-        <!-- Theme -->
-        <div class="settings-group">
-          <h3 class="settings-group-title">DISPLAY</h3>
-          <div class="settings-row">
-            <label>Theme</label>
-            <div class="segmented" role="group">
-              <button class="seg-btn" data-theme="light">☀ LIGHT</button>
-              <button class="seg-btn active" data-theme="auto">⬤ AUTO</button>
-              <button class="seg-btn" data-theme="dark">☽ DARK</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Stremio -->
-        <div class="settings-group">
-          <h3 class="settings-group-title">STREMIO</h3>
-          <div id="stremio-settings-content">
-            <div class="settings-row">
-              <label>Email</label>
-              <input type="email" id="stremio-email" placeholder="your@email.com" class="settings-input">
-            </div>
-            <div class="settings-row">
-              <label>Password</label>
-              <input type="password" id="stremio-password" placeholder="••••••••" class="settings-input">
-            </div>
-            <div class="settings-row">
-              <button id="stremio-login-btn" class="btn-primary">CONNECT TO STREMIO</button>
-            </div>
-            <div id="stremio-logged-in" class="hidden">
-              <div class="settings-row connected-row">
-                <div class="connected-info">
-                  <span class="dot green"></span>
-                  <span id="stremio-user-display">Connected</span>
-                </div>
-                <button id="stremio-logout-btn" class="btn-secondary btn-sm">DISCONNECT</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Google Calendar -->
-        <div class="settings-group">
-          <h3 class="settings-group-title">GOOGLE CALENDAR</h3>
-          <div id="gcal-locked" class="">
-            <div class="settings-row">
-              <label>Client ID</label>
-              <input type="text" id="gcal-client-id" placeholder="your-client-id.apps.googleusercontent.com" class="settings-input">
-            </div>
-            <div class="settings-row">
-              <label>Calendar ID</label>
-              <input type="text" id="gcal-calendar-id" placeholder="primary or calendar@group.calendar.google.com" class="settings-input">
-            </div>
-            <div id="gcal-connect-row" class="settings-row">
-              <button id="gcal-connect-btn" class="btn-primary">CONNECT GOOGLE CALENDAR</button>
-            </div>
-            <div id="gcal-confirm-row" class="settings-row hidden">
-              <div class="confirm-warning">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                This will modify your Google Calendar. Confirm to proceed.
-              </div>
-              <div class="confirm-buttons">
-                <button id="gcal-confirm-yes" class="btn-primary btn-sm">CONFIRM</button>
-                <button id="gcal-confirm-no" class="btn-secondary btn-sm">CANCEL</button>
-              </div>
-            </div>
-            <div id="gcal-connected-row" class="settings-row hidden">
-              <div class="connected-info">
-                <span class="dot green"></span>
-                <span>Google Calendar connected</span>
-              </div>
-              <button id="gcal-disconnect-btn" class="btn-secondary btn-sm">DISCONNECT</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Data / Backup -->
-        <div class="settings-group">
-          <h3 class="settings-group-title">DATA & BACKUP</h3>
-          <div class="settings-row">
-            <button id="export-btn" class="btn-secondary">EXPORT BACKUP</button>
-            <button id="import-btn" class="btn-secondary">IMPORT BACKUP</button>
-            <input type="file" id="import-file" accept=".json" class="hidden">
-          </div>
-          <div class="settings-row">
-            <button id="clear-data-btn" class="btn-danger">CLEAR ALL DATA</button>
-          </div>
-        </div>
-
-        <!-- Sync -->
-        <div class="settings-group">
-          <h3 class="settings-group-title">SYNC</h3>
-          <div class="settings-row">
-            <label>Auto-sync interval</label>
-            <select id="sync-interval" class="settings-select">
-              <option value="0">Manual only</option>
-              <option value="3600000" selected>Every hour</option>
-              <option value="21600000">Every 6 hours</option>
-              <option value="86400000">Daily</option>
-            </select>
-          </div>
-          <div id="last-sync-row" class="settings-row">
-            <label>Last sync</label>
-            <span id="last-sync-time" class="settings-value">Never</span>
-          </div>
-        </div>
-
-      </div>
+      <div id="search-spinner" class="spinner hidden"></div>
     </div>
+    <div id="search-results"></div>
   </div>
 
-  <!-- Show Detail Modal -->
-  <div id="show-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-lg">
-      <div class="modal-header">
-        <h2 id="show-modal-title">SHOW DETAILS</h2>
-        <button class="modal-close" aria-label="Close">✕</button>
-      </div>
-      <div class="modal-body" id="show-modal-body">
-        <!-- Populated dynamically -->
-      </div>
-    </div>
+  <!-- ── My Shows ──────────────────────────────────────────────── -->
+  <div id="tab-shows" class="tab-pane">
+    <div id="shows-list"></div>
   </div>
 
-  <!-- Duplicate Dialog -->
-  <div id="duplicate-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-sm">
-      <div class="modal-header">
-        <h2>⚠ DUPLICATE FOUND</h2>
-      </div>
-      <div class="modal-body">
-        <p id="duplicate-message"></p>
-        <div class="btn-row">
-          <button id="dup-keep-both" class="btn-secondary">KEEP BOTH</button>
-          <button id="dup-replace" class="btn-primary">REPLACE</button>
-          <button id="dup-skip" class="btn-secondary">SKIP</button>
-        </div>
-      </div>
-    </div>
+  <!-- ── Upcoming ──────────────────────────────────────────────── -->
+  <div id="tab-upcoming" class="tab-pane">
+    <div id="upcoming-list"></div>
   </div>
 
-  <!-- Log Modal -->
-  <div id="log-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Sync Log">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel modal-panel-lg">
-      <div class="modal-header">
-        <h2>SYNC LOG</h2>
-        <div class="log-header-actions">
-          <div class="log-filter-pills" role="group" aria-label="Filter log">
-            <button class="log-filter-btn active" data-level="all">ALL</button>
-            <button class="log-filter-btn" data-level="error">ERRORS</button>
-            <button class="log-filter-btn" data-level="warning">WARN</button>
-            <button class="log-filter-btn" data-level="success">OK</button>
-          </div>
-          <button id="log-clear-btn" class="btn-danger btn-sm" title="Clear log">CLEAR</button>
-          <button class="modal-close" aria-label="Close">✕</button>
-        </div>
-      </div>
-      <div class="log-stats-bar" id="log-stats-bar">
-        <!-- populated by JS -->
-      </div>
-      <div class="modal-body log-modal-body" id="log-entries-container">
-        <!-- populated by JS -->
+  <!-- ── Settings ──────────────────────────────────────────────── -->
+  <div id="tab-settings" class="tab-pane">
+
+    <!-- Install banner (shown before install) -->
+    <div id="install-banner" class="notice notice-green hidden">
+      <div class="notice-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.6"/><line x1="9" y1="5.5" x2="9" y2="10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><polyline points="6.5,8.5 9,11 11.5,8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="5.5" y1="13" x2="12.5" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div style="flex:1"><strong>Install TV Tracker</strong><br>Add to your home screen for the full app experience.</div>
+      <button id="install-btn" class="notice-action-btn">Install</button>
+    </div>
+
+    <!-- Setup notice -->
+    <div id="setup-notice" class="notice notice-amber hidden">
+      <div class="notice-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2L16.5 15.5H1.5L9 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="9" y1="7.5" x2="9" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="13" r="0.8" fill="currentColor"/></svg></div>
+      <div>
+        <strong>Calendar sync not configured</strong><br>
+        Enter your Google Client ID below to enable automatic Calendar sync.
+        <a href="https://console.cloud.google.com" target="_blank" class="notice-link">Get one free at Google Cloud ↗</a>
       </div>
     </div>
-  </div>
 
-  <!-- Toast notifications -->
-  <div id="toast-container" aria-live="polite"></div>
-
-  <!-- Sync progress overlay -->
-  <div id="sync-overlay" class="hidden">
-    <div class="sync-progress">
-      <div class="sync-spinner"></div>
-      <p id="sync-status-text">Syncing...</p>
+    <!-- Display / theme -->
+    <div class="settings-section">
+      <div class="settings-section-title">Display</div>
+      <label class="field-label">Theme</label>
+      <div class="theme-selector">
+        <button class="theme-opt" data-theme="dark">
+          <span class="theme-icon"><svg width="19" height="19" viewBox="0 0 19 19" fill="none"><path d="M16.5 11.5A7 7 0 1 1 7.5 2.5a5 5 0 0 0 9 9z" fill="currentColor" opacity="0.7"/></svg></span>
+          Dark
+        </button>
+        <button class="theme-opt" data-theme="light">
+          <span class="theme-icon"><svg width="19" height="19" viewBox="0 0 19 19" fill="none"><circle cx="9.5" cy="9.5" r="3.5" fill="currentColor" opacity="0.65"/><line x1="9.5" y1="1" x2="9.5" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9.5" y1="16" x2="9.5" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="9.5" x2="3" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="16" y1="9.5" x2="18" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="3.2" y1="3.2" x2="4.6" y2="4.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14.4" y1="14.4" x2="15.8" y2="15.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="15.8" y1="3.2" x2="14.4" y2="4.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.6" y1="14.4" x2="3.2" y2="15.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          Light
+        </button>
+        <button class="theme-opt" data-theme="auto">
+          <span class="theme-icon"><svg width="19" height="19" viewBox="0 0 19 19" fill="none"><path d="M9.5 1 A8.5 8.5 0 0 0 9.5 18Z" fill="currentColor" opacity="0.55"/><circle cx="9.5" cy="9.5" r="8.5" stroke="currentColor" stroke-width="1.5"/></svg></span>
+          Auto
+        </button>
+      </div>
     </div>
-  </div>
 
-</div><!-- #app -->
+    <!-- Google Calendar -->
+    <div class="settings-section">
+      <div class="settings-section-title">Google Calendar</div>
+      <label class="field-label">Client ID
+        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → OAuth Client ID (Web)</span>
+      </label>
+      <div class="field-row">
+        <input type="password" id="input-client-id" placeholder="123456789-xxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+        <button id="toggle-client-id" class="inline-btn">Show</button>
+      </div>
+      <label class="field-label" style="margin-top:14px">Calendar ID
+        <span class="field-hint">Use "primary" for your main Google Calendar</span>
+      </label>
+      <input type="text" id="input-calendar-id" placeholder="primary" autocomplete="off">
+      <div style="margin-top:14px">
+        <label class="toggle-label">
+          <input type="checkbox" id="input-auto-sync">
+          <span class="toggle-text">Auto-sync when app opens</span>
+        </label>
+      </div>
+      <button id="save-settings-btn" class="btn-primary" style="margin-top:16px">Save Settings</button>
+      <div class="setup-instructions">
+        <details>
+          <summary>How to get a Google Client ID</summary>
+          <ol>
+            <li>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+            <li>Create a project named <strong>TV Tracker</strong></li>
+            <li>Enable the <strong>Google Calendar API</strong></li>
+            <li>Go to <strong>Credentials → Create OAuth Client ID</strong></li>
+            <li>Type: <strong>Web application</strong></li>
+            <li>Add your GitHub Pages URL as <strong>Authorized JavaScript origin</strong></li>
+            <li>Copy the Client ID, paste above, tap Save Settings</li>
+          </ol>
+        </details>
+      </div>
+    </div>
 
-<script src="js/storage.js"></script>
-<script src="js/api.js"></script>
-<script src="js/stremio.js"></script>
-<script src="js/gcal.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
+    <!-- Backup -->
+    <div class="settings-section">
+      <div class="settings-section-title">Backup &amp; Restore</div>
+      <p class="settings-desc">All data is stored on this device only. Back up to keep a copy or move to a new phone. Your Google Client ID is excluded from backups for security.</p>
+      <div class="backup-row">
+        <button id="backup-btn" class="btn-outline">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><line x1="6.5" y1="1.5" x2="6.5" y2="9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><polyline points="4,7 6.5,9.5 9,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="10.5" width="11" height="1.5" rx="0.75" fill="currentColor" opacity="0.5"/></svg>
+          Download backup
+        </button>
+        <button id="restore-btn" class="btn-outline">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><line x1="6.5" y1="9" x2="6.5" y2="1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><polyline points="4,4 6.5,1.5 9,4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="10.5" width="11" height="1.5" rx="0.75" fill="currentColor" opacity="0.5"/></svg>
+          Restore from file
+        </button>
+        <input type="file" id="restore-file" accept=".json" style="display:none">
+      </div>
+      <p id="storage-size" class="storage-info">Calculating…</p>
+    </div>
+
+    <!-- Sync log -->
+    <div class="settings-section">
+      <div class="settings-section-title">Sync History</div>
+      <div id="sync-log"></div>
+    </div>
+
+    <!-- About -->
+    <div class="settings-section">
+      <div class="settings-section-title">About</div>
+      <div class="about-row"><span>TV data</span><a href="https://www.tvmaze.com" target="_blank">TVMaze API</a></div>
+      <div class="about-row"><span>Streaming</span><a href="https://strem.io" target="_blank">Stremio</a></div>
+      <div class="about-row"><span>Calendar</span><span>Google Calendar API v3</span></div>
+      <div class="about-row"><span>Storage</span><span>Local device only</span></div>
+    </div>
+
+  </div><!-- /settings -->
+
+  <div id="toast-container"></div>
+</div><!-- /#app -->
+
+<script src="https://accounts.google.com/gsi/client" async onload="window.dispatchEvent(new Event('gsi-loaded'))"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 <script>
-  // Register Service Worker
-if ('serviceWorker' in navigator) {
-  // Using './' ensures it looks inside the /TVTracker/ folder
-  navigator.serviceWorker.register('./sw.js')
-    .then(() => console.log('Service Worker Registered'))
-    .catch(err => console.error('Service Worker Failed', err));
-}
+// Theme switcher (runs after app.js too, safe to re-run)
+(function(){
+  function applyTheme(t){
+    if(t==='auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme',t);
+    localStorage.setItem('tvtracker_theme',t);
+    document.querySelectorAll('.theme-opt').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    applyTheme(localStorage.getItem('tvtracker_theme')||'auto');
+    document.querySelectorAll('.theme-opt').forEach(b=>b.addEventListener('click',()=>applyTheme(b.dataset.theme)));
+  });
+})();
 </script>
 </body>
 </html>
