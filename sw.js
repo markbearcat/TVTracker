@@ -1,52 +1,41 @@
-const CACHE_NAME = 'tv-tracker-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
-  './config.js',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
-];
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-
-  // Network-first for API calls
-  if (url.hostname.includes('tvmaze.com') || url.hostname.includes('googleapis.com')) {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // Cache-first for app shell
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        return response;
-      });
-    })
-  );
-});
+{
+  "name": "TV Tracker",
+  "short_name": "TV Tracker",
+  "description": "Track TV shows · sync to Google Calendar · add to Stremio watchlist",
+  "start_url": "./index.html",
+  "id": "./index.html",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#111009",
+  "theme_color": "#50AA3C",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "lang": "en",
+  "categories": ["entertainment", "lifestyle"],
+  "icons": [
+    { "src": "icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Shows",
+      "short_name": "Search",
+      "description": "Search for a new TV show to track",
+      "url": "./index.html#search",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "My Shows",
+      "short_name": "My Shows",
+      "description": "View your tracked shows",
+      "url": "./index.html#shows",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ]
+}
